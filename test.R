@@ -1,16 +1,12 @@
 library(TDA)
-install.packages("TDAmapper", dependencies=TRUE)
 library(TDAmapper)
 library(ggplot2)
 library(plotly)
 library(igraph)
 
-library(devtools)
-devtools::install_github("paultpearson/TDAmapper")
-
 a<-runif(300)
 a<-matrix(data=a,nrow=100,byrow = T)
-plot_ly(x=a[,1], y=a[,2], z=a[,3], type="scatter3d", mode="markers", color=temp)
+plot_ly(x=a[,1], y=a[,2], z=a[,3], type="scatter3d", mode="markers", color="blue")
 
 X <- circleUnif(200)
 X<-rbind(X,matrix(runif(200,-1,1),ncol=2,byrow=F))
