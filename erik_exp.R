@@ -77,19 +77,25 @@ data_df<-data_df[,2:38]
 #plot(data_df)
 #astra_clean<-data_df[t==0,]
 
-#astra_clean<-astra_clean[,-c(19,37)]
+astra_clean<-astra_clean[,-c(19,37)]
 #astra_clean<-apply(astra_clean,2,as.numeric)
 astra_clean<-data_df[-9,]
+astra_clean<-astra_clean[-c(33,32,31,30),]
+astra_clean<-astra_clean[-11,]
+names<-names[-9]
+names<-names[-c(33,32,31,30)]
+names<-names[-11]
 astra_clean<-apply(astra_clean,2,as.numeric)
-astra_dist<-dist(astra_clean)
+astra_dist<-dist(astra_clean[,1:32])
 
-ast
+pc=prcomp(astra_clean[,1:32])
+
 
 astra_graph=mapper1D(distance_matrix = astra_dist,
-                     filter_values = astra_clean[,1],
-                     num_intervals = 10,
+                     filter_values = pc$x[,1],
+                     num_intervals = 8,
                      percent_overlap = 80,
-                     num_bins_when_clustering = 10)
+                     num_bins_when_clustering = 5)
 astra_graph_plot <- graph.adjacency(astra_graph$adjacency, mode="undirected")
 plot(astra_graph_plot)
 vertex.size <- rep(0,astra_graph$num_vertices)
@@ -97,20 +103,22 @@ for (i in 1:astra_graph$num_vertices){
   points.in.vertex <- astra_graph$points_in_vertex[[i]]
   vertex.size[i] <- length((astra_graph$points_in_vertex[[i]]))
 }
-y.mean.vertex <- rep(0,astra_graph$num_vertices)
+flow.mean.vertex <- rep(0,astra_graph$num_vertices)
+
+d20.mean.vertex <- rep(0,astra_graph$num_vertices)
 for (i in 1:astra_graph$num_vertices){
   points.in.vertex <- astra_graph$points_in_vertex[[i]]
-  y.mean.vertex[i] <-mean((astra_clean$[points.in.vertex]))
+  flow.mean.vertex[i] <-mean((astra_clean[points.in.vertex,35]),na.omit=T)
+  d50.mean.vertex[i]<-mean((astra_clean[points.in.vertex,1]),na.omit=T)
 }
-y.mean.vertex.grey <- grey(1-(y.mean.vertex - min(y.mean.vertex))/(max(y.mean.vertex) - min(y.mean.vertex) ))
-V(astra_graph_plot)$color <- y.mean.vertex.grey
-V(astra_graph_plot)$size <- vertex.size
-plot(astra_graph_plot,main ="Mapper Graph")
-legend(x=-2, y=-1, c("y small","y medium","large y"),pch=21,
-       col="#777777", pt.bg=grey(c(1,0.5,0)), pt.cex=2, cex=.8, bty="n", ncol=1)
+flow.mean.vertex.grey <- grey(1-(flow.mean.vertex - min(flow.mean.vertex))/(max(flow.mean.vertex) - min(flow.mean.vertex) ))
+d50.mean.vertex.grey <- grey(1-(d50.mean.vertex - min(d50.mean.vertex))/(max(d50.mean.vertex) - min(d50.mean.vertex) ))
+V(astra_graph_plot)$color <- flow.mean.vertex.grey
+#V(astra_graph_plot)$size <- vertex.size
+plot(astra_graph_plot,main ="Colored by Flow rate")
 
-
-
+V(astra_graph_plot)$color <-d50.mean.vertex.grey
+plot(astra_graph_plot,main ="Colored by particle size")
 
 
 l=length(V(astra_graph_plot))
@@ -135,7 +143,7 @@ maximum<-apply(apply(astra_clean,2,as.numeric),2,max)
 limits=rbind(minimum,maximum)
 
 a=ripsDiag(
-  X=astra_clean, maxdimension=3, maxscale=45, dist = "euclidean",
+  X=astra_clean[,1:32], maxdimension=3, maxscale=45, dist = "euclidean",
   library = "GUDHI", location = FALSE, printProgress = FALSE)
 plot(a[["diagram"]])
 library(onion)
