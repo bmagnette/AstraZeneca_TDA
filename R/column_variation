@@ -1,0 +1,97 @@
+#install.packages("devtools")
+#install.packages("readxl")
+#library(devtools)
+#devtools::install_github("paultpearson/TDAmapper")
+#install.packages("xlsx")
+
+library(TDAmapper)
+library(TDA)
+library(readxl)
+library("FactoMineR")
+library("factoextra")
+library("xlsx")
+
+# Load and clean data
+data <- read_excel("data/data.xlsx")
+data[, c(2:38)] <- sapply(data[, c(2:38)], as.numeric)
+data <- data[, 2:38]
+
+pca <- PCA(data, scale.unit = TRUE, ncp = 2, graph = FALSE)
+
+#fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 80)) # Data Visualization
+
+# Define lim for persistance homology.
+Xlim <- c(min(pca$ind$coord[,1]), max(pca$ind$coord[,2]))
+Ylim <- c(min(pca$ind$coord[,1]), max(pca$ind$coord[,2]))
+by <- 0.05
+Xseq <- seq(from = Xlim[1], to = Xlim[2], by = by)
+Yseq <- seq(from = Ylim[1], to = Ylim[2], by = by)
+BasicGrid <- expand.grid(Xseq, Yseq)
+
+# Perform persistance homology with grid or Rips
+#BasicDiagGrid <- gridDiag(X = pca$ind$coord, FUN = kde, h = 0.3, lim = cbind(Xlim, Ylim), by = by,
+#                     sublevel = FALSE, library = "Dionysus", location = TRUE,
+#                     printProgress = FALSE)
+BasicDiagGrid <- ripsDiag(X = pca$ind$coord, maxdimension = 1, dist = "euclidean", maxscale = 5)
+
+##################################################
+# Data Selection and Persistant homology with data saving.
+res <- c()
+res_five_comp = c()
+res_diag = c()
+res_grid = c()
+# Loop to perform persistant homology depending on columns selection
+for(i in c(1:length(data))){
+  # Select data
+  cat(sprintf("\" Removing columne number %f \n", i))
+  selected_data <- data[, c(-i)]
+  
+  # Perform PCA to prepare persistance homology
+  pca <- PCA(selected_data, scale.unit = TRUE, ncp = 2, graph = FALSE)
+  res_five_comp <- c(res_five_comp, pca$eig[5,3])
+  
+  #fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 80)) # Data Visualization
+  
+  # Define lim for persistance homology.
+  Xlim <- c(min(pca$ind$coord[,1]), max(pca$ind$coord[,2]))
+  Ylim <- c(min(pca$ind$coord[,1]), max(pca$ind$coord[,2]))
+  by <- 0.05
+  Xseq <- seq(from = Xlim[1], to = Xlim[2], by = by)
+  Yseq <- seq(from = Ylim[1], to = Ylim[2], by = by)
+  Grid <- expand.grid(Xseq, Yseq)
+  
+  # Perform persistance homology.
+  #DiagGrid <- gridDiag(X = pca$ind$coord, FUN = kde, h = 0.3, lim = cbind(Xlim, Ylim), by = by,
+  #                     sublevel = FALSE, library = "Dionysus", location = TRUE,
+  #                     printProgress = FALSE)
+  
+  DiagGrid <- ripsDiag(X = pca$ind$coord, maxdimension = 1, dist = "euclidean", maxscale = 5)
+  res_grid = c(res_grid, Grid)
+  res_diag <- c(res_diag, list(DiagGrid))
+}
+
+# Compute bottlneck distance between each Diag Created
+bottleneck_dist <- matrix()
+for(i in c(1:length(res_diag))){
+  current_diag = res_diag[[i]]$diagram
+  
+  bootle_neck = bottleneck(current_diag, BasicDiagGrid$diagram, dimension = 1)
+  #cat("Bootle neck :", bootle_neck, "\n")
+
+  bottleneck_dist = rbind(bottleneck_dist, c(bootle_neck))
+}
+
+write.xlsx(bottleneck_dist, file = "data/column_variation_result_rips.xlsx",
+           sheetName = "Bottleneck_distance", append = FALSE)
+
+# Graphic to display
+# Bootstrap for band
+Basicband <- bootstrapBand(X = res.pca$ind$coord, FUN = kde, Grid = Grid, B = 100,
+                      parallel = FALSE, alpha = 0.1, h = 0.3)
+
+#input_grid <- matrix(res_grid[1]$Var1, res_grid[1]$Var2)
+#ModifiedBand <- bootstrapBand(X = res.pca$ind$coord, FUN = kde, Grid = res_grid[[1]]$Var1, B = 100,
+#                                 parallel = FALSE, alpha = 0.1, h = 0.3)
+par(mfrow=c(2,1))
+plot(BasicDiagGrid[["diagram"]], band = 2 * Basicband[["width"]], main = "Basic Diagram")
+plot(res_diag[[1]]$diagram, band = 2 * Basicband[["width"]], main = "One column missing")
